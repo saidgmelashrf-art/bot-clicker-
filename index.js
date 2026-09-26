@@ -1,17 +1,25 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// --- 1. سيرفر HTTP ---
+// --- 1. سيرفر ويب متوافق مع نظام الـ Health Check الخاص بـ Railway ---
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Railway يقوم بتمرير البورت تلقائياً عبر PORT، وإلا سيعمل على 3000 محلياً
+const PORT = process.env.PORT || 3000; 
 
 app.get('/', (req, res) => {
-    res.send('Both Minecraft Bots are Active 24/7!');
+    res.status(200).send('Railway Minecraft Bots are Online 24/7!');
 });
 
-app.listen(PORT, () => console.log(`Keep-Alive running on port ${PORT}`));
+// هذا المسار الفرعي يضمن لـ Railway أن الخدمة مستقرة ولا تموت في الخلفية
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
 
-// --- 2. بيانات البوتين (جربت تغيير الأسماء لأسماء طبيعية لتفادي نظام حظر البوتات) ---
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Express] السيرفر يعمل بنجاح ومستعد لاستقبال اتصالات Railway على البورت: ${PORT}`);
+});
+
+// --- 2. بيانات البوتات ---
 const botsData = [
     { username: 'GamerPro_247_1', password: 'MyBotPassword123' },
     { username: 'GamerPro_247_2', password: 'MyBotPassword123' }
@@ -22,56 +30,59 @@ const SERVER_PORT = 25856;
 
 // --- 3. دالة تشغيل البوت ---
 function startBot(config) {
-    console.log(`[${config.username}] جاري محاولة الاتصال بـ ${SERVER_HOST}:${SERVER_PORT}...`);
+    console.log(`[${config.username}] 🔄 جاري محاولة الاتصال بـ ${SERVER_HOST}:${SERVER_PORT}...`);
 
     const bot = mineflayer.createBot({
         host: SERVER_HOST,
         port: SERVER_PORT,
         username: config.username,
-        // ⚠️ مهم جداً: إذا لم ينجح، غير "1.20.1" إلى إصدار سيرفرك الدقيق (مثلاً "1.21" أو "1.19.2")
-        version: "1.20.1", 
-        auth: 'offline', // لتأكيد أن السيرفر مكرك
-        checkTimeoutInterval: 30000 // قطع الاتصال والمحاولة مجدداً إذا علق السيرفر لأكثر من 30 ثانية
+        version: "1.20.1", // ⚠️ تأكد أن هذا هو إصدار سيرفرك بالضبط
+        auth: 'offline',   // لتشغيل الحسابات المكركة
+        // إعدادات مصيرية لـ Railway لمنع تعليق حزم البيانات الصادرة
+        checkTimeoutInterval: 45000, 
+        respawn: true
     });
 
     let actionTimeout;
 
-    // حدث الدخول الناجح
+    // عند الدخول الناجح
     bot.on('spawn', () => {
-        console.log(`[${config.username}] ✅ دخل السيرفر بنجاح الآن!`);
+        console.log(`[${config.username}] ✅ دخل سيرفر ماين كرافت بنجاح على Railway!`);
 
+        // تأخير ذكي منفصل للأوامر لمنع الحظر
         setTimeout(() => {
             if (bot && bot.entity) {
                 bot.chat(`/register ${config.password} ${config.password}`);
+                
                 setTimeout(() => {
                     if (bot && bot.entity) bot.chat(`/login ${config.password}`);
-                }, 2000);
+                }, 2500);
             }
         }, 3000);
 
         scheduleNextAction(bot, config.username);
     });
 
-    // 🚨 كاشف أخطاء الطرد (Kick)
+    // كاشف الطرد المباشر
     bot.on('kicked', (reason) => {
-        console.log(`[${config.username}] ❌ تم طرده من السيرفر! السبب: ${reason}`);
+        console.log(`[${config.username}] ❌ تم طرده! السبب: ${JSON.stringify(reason)}`);
     });
 
-    // 🚨 كاشف أخطاء الاتصال (Error)
+    // كاشف أخطاء الشبكة على سيرفرات ريلواي
     bot.on('error', (err) => {
-        console.error(`[${config.username}] 🚨 حدث خطأ في الاتصال:`, err.message);
+        console.error(`[${config.username}] 🚨 خطأ في الاتصال بالشبكة:`, err.message);
     });
 
-    // عند فصل السيرفر
+    // إعادة الاتصال التلقائي عند الانفصال
     bot.on('end', (reason) => {
-        console.warn(`[${config.username}] 🔌 انفصل الاتصال (Reason: ${reason}). إعادة المحاولة بعد 15 ثانية...`);
+        console.warn(`[${config.username}] 🔌 انفصل الاتصال بسبب (${reason}). إعادة المحاولة خلال 20 ثانية...`);
         if (actionTimeout) clearTimeout(actionTimeout);
-        setTimeout(() => startBot(config), 15000);
+        setTimeout(() => startBot(config), 20000);
     });
 
-    // دالة الحركة التلقائية العشوائية
+    // نظام الحركة لمنع الـ AFK
     function scheduleNextAction(botInstance, name) {
-        const randomDelay = Math.floor(Math.random() * (25000 - 8000)) + 8000;
+        const randomDelay = Math.floor(Math.random() * (20000 - 10000)) + 10000;
         actionTimeout = setTimeout(async () => {
             if (botInstance && botInstance.entity) {
                 await performAction(botInstance);
@@ -81,27 +92,18 @@ function startBot(config) {
     }
 
     async function performAction(botInstance) {
-        const actions = ['jump', 'sneak', 'lookAround', 'walk', 'swingArm'];
+        const actions = ['jump', 'lookAround', 'swingArm'];
         const chosenAction = actions[Math.floor(Math.random() * actions.length)];
         try {
             switch (chosenAction) {
                 case 'jump':
                     botInstance.setControlState('jump', true);
-                    setTimeout(() => botInstance.setControlState('jump', false), 400);
-                    break;
-                case 'sneak':
-                    botInstance.setControlState('sneak', true);
-                    setTimeout(() => botInstance.setControlState('sneak', false), 1000);
+                    setTimeout(() => botInstance.setControlState('jump', false), 300);
                     break;
                 case 'lookAround':
                     const yaw = (Math.random() * 360 - 180) * (Math.PI / 180);
-                    const pitch = (Math.random() * 60 - 30) * (Math.PI / 180);
+                    const pitch = (Math.random() * 40 - 20) * (Math.PI / 180);
                     await botInstance.look(yaw, pitch, true);
-                    break;
-                case 'walk':
-                    const dir = Math.random() > 0.5 ? 'forward' : 'back';
-                    botInstance.setControlState(dir, true);
-                    setTimeout(() => botInstance.setControlState(dir, false), 500);
                     break;
                 case 'swingArm':
                     botInstance.swingArm('right');
@@ -111,13 +113,13 @@ function startBot(config) {
     }
 }
 
-// حماية الكود من الانهيار التام
-process.on('unhandledRejection', err => console.error('خطأ غير متوقع Rejection:', err));
-process.on('uncaughtException', err => console.error('خطأ غير متوقع Exception:', err));
+// منع كراش الخدمة في Railway عند حدوث خطأ مفاجئ بالشبكة
+process.on('unhandledRejection', err => console.error('Railway Safety Exception:', err));
+process.on('uncaughtException', err => console.error('Railway Safety Exception:', err));
 
-// تشغيل البوتات
+// تشغيل البوتات بفارق زمني متباعد لمنع حجب الآيبيهات الخاص بريلواي
 botsData.forEach((config, index) => {
     setTimeout(() => {
         startBot(config);
-    }, index * 8000);
+    }, index * 12000);
 });
