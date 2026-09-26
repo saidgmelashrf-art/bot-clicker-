@@ -16,7 +16,7 @@ const botsData = [
 ];
 
 const SERVER_HOST = 'progamer-smp1.play.hosting'; 
-const SERVER_PORT = 25856; 
+const SERVER_PORT = 19321; 
 
 // --- 3. دالة تشغيل البوت ---
 function startBot(config) {
