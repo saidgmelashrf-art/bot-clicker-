@@ -17,7 +17,7 @@ const botsData = [
 
 const SERVER_HOST = 'progamer-smp1.play.hosting'; 
 
-// --- 3. دالة تشغيل البوت المضادة تماماً للـ Anti-Cheat ---
+// --- 3. دالة تشغيل البوت الذكية ---
 function startBot(config) {
     console.log(`[${config.username}] 🔄 جاري فحص العنوان والاتصال التلقائي بـ ${SERVER_HOST}...`);
 
@@ -28,23 +28,20 @@ function startBot(config) {
         auth: 'offline',   
         checkTimeoutInterval: 90000, 
         viewDistance: "tiny",
-        
-        // ⚠️ الخدعة الأولى: تعطيل الفيزياء المبدئية تماماً لمنع محاكاة الجاذبية الخاطئة في الكود
-        physicsEnabled: false 
+        physicsEnabled: false // معطلة لمنع طرد الـ Invalid Movement
     });
 
-    bot.on('spawn', () => {
-        console.log(`[${config.username}] ✅ 🎉 دخل واستقر بنجاح وثبّت حزم الحركة!`);
+    let afkInterval;
 
-        // ⚠️ الخدعة الثانية: إجبار السيرفر على قراءة البوت كلاعب واقف بثبات على الأرض
+    bot.on('spawn', () => {
+        console.log(`[${config.username}] ✅ 🎉 دخل البوت واستقر في السيرفر!`);
+
         if (bot.entity) {
             bot.entity.onGround = true;
         }
-
-        // إلغاء تفعيل أي تحكمات أو حركات وهمية قد تسبب الطرد
         bot.clearControlStates();
 
-        // إرسال أوامر الشات بتأخير آمن ومريح للسيرفر لتفادي الحظر
+        // أوامر الشات بتأخير آمن
         setTimeout(() => {
             if (bot && bot.entity) {
                 bot.chat(`/register ${config.password} ${config.password}`);
@@ -53,9 +50,22 @@ function startBot(config) {
                 }, 3000);
             }
         }, 5000);
+
+        // 🔥 ميزة الـ Anti-AFK الآمنة (الانحناء والوقوف في مكانه بدون طرد)
+        if (afkInterval) clearInterval(afkInterval);
+        afkInterval = setInterval(() => {
+            if (bot && bot.entity) {
+                // تفعيل الانحناء (Sneak)
+                bot.setControlState('sneak', true);
+                
+                // إلغاء الانحناء بعد ثانية واحدة ليعود لوضعه الطبيعي
+                setTimeout(() => {
+                    if (bot && bot.entity) bot.setControlState('sneak', false);
+                }, 1000);
+            }
+        }, 30000); // تتكرر كل 30 ثانية لتجديد النشاط بالسيرفر
     });
 
-    // كاشف الأخطاء والطرد
     bot.on('kicked', (reason) => {
         console.log(`[${config.username}] ❌ طرد: ${JSON.stringify(reason)}`);
     });
@@ -64,17 +74,25 @@ function startBot(config) {
         console.error(`[${config.username}] 🚨 خطأ شبكة:`, err.message);
     });
     
+    // 🔥 ميزة الانتظار 10 ثوانٍ عند الريستارت أو قفل السيرفر
     bot.on('end', (reason) => {
-        console.warn(`[${config.username}] 🔌 انفصل (${reason}). إعادة اتصال خلال 30 ثانية...`);
-        setTimeout(() => startBot(config), 30000);
+        if (afkInterval) clearInterval(afkInterval);
+        
+        console.warn(`[${config.username}] 🔌 انفصل الاتصال بسبب (${reason}). السيرفر قد يكون في حالة ريستارت...`);
+        console.log(`[${config.username}] ⏱️ جاري الانتظار لمدة 10 ثوانٍ قبل إعادة الدخول...`);
+        
+        setTimeout(() => {
+            console.log(`[${config.username}] 🔄 جاري محاولة إعادة الدخول الآن بعد انتهاء الـ 10 ثوانٍ...`);
+            startBot(config);
+        }, 10000); // 10000 جزء من الثانية تعني 10 ثوانٍ بالضبط
     });
 }
 
-// حماية حاوية التشغيل من الانهيار والسكوت
+// حماية الحاوية
 process.on('unhandledRejection', err => {});
 process.on('uncaughtException', err => {});
 
-// تشغيل البوتات بفواصل متباعدة جداً (25 ثانية) لضمان عدم رصد الـ IP من الحماية
+// تشغيل البوتات بفواصل متباعد عند الإقلاع الأول
 botsData.forEach((config, index) => {
     setTimeout(() => startBot(config), index * 25000); 
 });
