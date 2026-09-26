@@ -20,13 +20,13 @@ const SERVER_PORT = 25856;
 
 // --- 3. دالة تشغيل البوت المطور ---
 function startBot(config) {
-    console.log(`[${config.username}] 🔄 جاري بدء المصافحة المستقرة للاتصال بـ ${SERVER_HOST}...`);
+    console.log(`[${config.username}] 🔄 جاري بدء المصافحة المستقرة للاتصال بـ ${SERVER_HOST} بإصدار 1.20.4...`);
 
     const bot = mineflayer.createBot({
         host: SERVER_HOST,
         port: SERVER_PORT,
         username: config.username,
-        version: "1.21.1", // النسخة المطابقة تماماً لسيرفرك
+        version: "1.20.4", // 👈 تم التغيير إلى 1.20.4 بناءً على طلبك
         auth: 'offline',   // تشغيل الحساب المكرك
         
         // إعدادات مصيرية للتوافق مع استضافة Play.hosting والـ Crossplay
@@ -39,7 +39,7 @@ function startBot(config) {
 
     // عند الدخول الناجح
     bot.on('spawn', () => {
-        console.log(`[${config.username}] ✅ 🎉 مبروك! البوت نجح في الدخول واستقر داخل السيرفر!`);
+        console.log(`[${config.username}] ✅ 🎉 مبروك! البوت نجح في الدخول واستقر داخل السيرفر بإصدار 1.20.4!`);
 
         setTimeout(() => {
             if (bot && bot.entity) {
