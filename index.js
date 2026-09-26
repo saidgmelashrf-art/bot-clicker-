@@ -15,27 +15,27 @@ const botsData = [
     { username: 'GamerPro_247_2', password: 'MyBotPassword123' }
 ];
 
-// استضافة Play.hosting تستخدم بورت الجوال الافتراضي للكروس بلاي
+// تعديل مصيري: الاتصال بنظام البدروك ولكن على بورت سيرفرك الخاص لتخطي الحجب
 const SERVER_HOST = 'progamer-smp1.play.hosting'; 
-const SERVER_PORT = 19132; // 👈 بورت البدروك الإجباري لتخطي الحظر نهائياً
+const SERVER_PORT = 25856; // 👈 البورت الخاص بك ليعبر من خلال الـ Crossplay المدمج
 
 // --- 3. دالة تشغيل بوت البدروك ---
 function startBot(config) {
-    console.log(`[${config.username}] 📱 جاري الدخول بنظام البدروك (الجوال) لتخطي حظر الـ Java...`);
+    console.log(`[${config.username}] 📱 جاري الدخول بنظام البدروك على بورت السيرفر ${SERVER_PORT}...`);
 
     const client = bedrock.createClient({
         host: SERVER_HOST,
         port: SERVER_PORT,
         username: config.username,
-        offline: true, // الحساب مكرك
-        skipPing: false
+        offline: true, // حساب مكرك
+        skipPing: true // ⚠️ تسريع الاتصال وتخطي فحص البورت لمنع الـ Timeout
     });
 
     let keepAliveInterval;
 
     // عند النجاح في الاتصال والولادة داخل السيرفر
     client.on('spawn', () => {
-        console.log(`[${config.username}] ✅ 🎉 مبروك! البوت دخل السيرفر بنجاح كلاعب جوال عبر Railway!`);
+        console.log(`[${config.username}] ✅ 🎉 نجح الاتصال الفعلي ودخل البوت كلاعب بدروك!`);
 
         // إرسال أوامر التسجيل والدخول في الشات
         setTimeout(() => {
@@ -54,7 +54,6 @@ function startBot(config) {
 
         // نظام إرسال حزم الحركة عشوائياً (Anti-AFK) لمنع الطرد
         keepAliveInterval = setInterval(() => {
-            // إرسال حزمة حركة وهمية خفيفة للسيرفر للحفاظ على الاتصال 24 ساعة
             client.queue('player_auth_input', {
                 pitch: 0, yaw: Math.random() * 360,
                 position: { x: 0, y: 0, z: 0 },
