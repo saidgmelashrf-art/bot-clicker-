@@ -28,7 +28,7 @@ function startBot(config) {
         host: SERVER_HOST,
         port: SERVER_PORT,
         username: config.username,
-        version: false
+        version: false // سيتعرف البوت تلقائياً على إصدار السيرفر
     });
 
     let actionTimeout;
@@ -36,16 +36,23 @@ function startBot(config) {
     bot.on('spawn', () => {
         console.log(`[${config.username}] دخل السيرفر بنجاح!`);
 
+        // تعديل مهم: إرسال الـ register أولاً، ثم الـ login بعده بثانيتين لتجنب الطرد (Spam)
         setTimeout(() => {
-            bot.chat(`/register ${config.password} ${config.password}`);
-            bot.chat(`/login ${config.password}`);
+            if (bot && bot.entity) {
+                bot.chat(`/register ${config.password} ${config.password}`);
+                
+                setTimeout(() => {
+                    if (bot && bot.entity) bot.chat(`/login ${config.password}`);
+                }, 2000);
+            }
         }, 2000);
 
         scheduleNextAction(bot, config.username);
     });
 
     function scheduleNextAction(botInstance, name) {
-        const randomDelay = Math.floor(Math.random() * (20000 - 5000)) + 5000;
+        // وقت عشوائي بين 8 إلى 25 ثانية لتبدو الحركة طبيعية للـ Anti-Cheat
+        const randomDelay = Math.floor(Math.random() * (25000 - 8000)) + 8000;
 
         actionTimeout = setTimeout(async () => {
             if (botInstance && botInstance.entity) {
@@ -71,13 +78,14 @@ function startBot(config) {
                     break;
                 case 'lookAround':
                     const yaw = (Math.random() * 360 - 180) * (Math.PI / 180);
-                    const pitch = (Math.random() * 90 - 45) * (Math.PI / 180);
+                    const pitch = (Math.random() * 60 - 30) * (Math.PI / 180); // تقليل زاوية الرأس للأعلى والأسفل لتبدو طبيعية
                     await botInstance.look(yaw, pitch, true);
                     break;
                 case 'walk':
                     const dir = Math.random() > 0.5 ? 'forward' : 'back';
                     botInstance.setControlState(dir, true);
-                    setTimeout(() => botInstance.setControlState(dir, false), Math.floor(Math.random() * 1500) + 500);
+                    // المشي لفترة قصيرة جداً (نصف ثانية) لتجنب السقوط في الحفر أو الـ Lava
+                    setTimeout(() => botInstance.setControlState(dir, false), 500);
                     break;
                 case 'swingArm':
                     botInstance.swingArm('right');
@@ -86,6 +94,7 @@ function startBot(config) {
         } catch (e) {}
     }
 
+    // التعامل مع الفصل المفاجئ بأمان
     bot.on('end', (reason) => {
         console.warn(`[${config.username}] فصل الاتصال: ${reason}. إعادة المحاولة بعد 15 ثانية...`);
         if (actionTimeout) clearTimeout(actionTimeout);
@@ -97,14 +106,13 @@ function startBot(config) {
     });
 }
 
-// حماية من انهيار السيرفر
+// حماية من انهيار السيرفر بأكمله عند حدوث خطأ غير متوقع
 process.on('unhandledRejection', err => console.error('Unhandled Error:', err));
 process.on('uncaughtException', err => console.error('Uncaught Error:', err));
 
-// تشغيل البوتين بفارق 5 ثوانٍ
+// تشغيل البوتين بفارق 7 ثوانٍ لضمان عدم ضغط السيرفر أثناء الدخول
 botsData.forEach((config, index) => {
     setTimeout(() => {
         startBot(config);
-    }, index * 5000);
+    }, index * 7000);
 });
-
