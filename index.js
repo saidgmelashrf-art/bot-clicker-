@@ -17,7 +17,7 @@ const botsData = [
 
 const SERVER_HOST = 'progamer-smp1.play.hosting'; 
 
-// --- 3. دالة تشغيل البوت الآمن من الـ Anti-Cheat ---
+// --- 3. دالة تشغيل البوت المضادة تماماً للـ Anti-Cheat ---
 function startBot(config) {
     console.log(`[${config.username}] 🔄 جاري فحص العنوان والاتصال التلقائي بـ ${SERVER_HOST}...`);
 
@@ -28,19 +28,23 @@ function startBot(config) {
         auth: 'offline',   
         checkTimeoutInterval: 90000, 
         viewDistance: "tiny",
-        // حماية إضافية تمنع البوت من محاولة عمل حسابات فيزياء وهمية قد تسبب الـ Invalid Movement
-        physicsEnabled: true 
+        
+        // ⚠️ الخدعة الأولى: تعطيل الفيزياء المبدئية تماماً لمنع محاكاة الجاذبية الخاطئة في الكود
+        physicsEnabled: false 
     });
-
-    let keepAliveInterval;
 
     bot.on('spawn', () => {
         console.log(`[${config.username}] ✅ 🎉 دخل واستقر بنجاح وثبّت حزم الحركة!`);
 
-        // إلغاء تفعيل التحكم لمنع أي حركة خاطئة تسبب طرد من الـ Anti-Cheat
+        // ⚠️ الخدعة الثانية: إجبار السيرفر على قراءة البوت كلاعب واقف بثبات على الأرض
+        if (bot.entity) {
+            bot.entity.onGround = true;
+        }
+
+        // إلغاء تفعيل أي تحكمات أو حركات وهمية قد تسبب الطرد
         bot.clearControlStates();
 
-        // إرسال أوامر الشات بتأخير آمن
+        // إرسال أوامر الشات بتأخير آمن ومريح للسيرفر لتفادي الحظر
         setTimeout(() => {
             if (bot && bot.entity) {
                 bot.chat(`/register ${config.password} ${config.password}`);
@@ -49,34 +53,28 @@ function startBot(config) {
                 }, 3000);
             }
         }, 5000);
-
-        // الخدعة البديلة الآمنة: بدلاً من القفز والمشي، نجعله يلتفت فقط للنظر حوله كل 15 ثانية لتبدو حركة من لاعب حقيقي جالس
-        if (keepAliveInterval) clearInterval(keepAliveInterval);
-        keepAliveInterval = setInterval(async () => {
-            if (bot && bot.entity) {
-                try {
-                    const yaw = (Math.random() * 360 - 180) * (Math.PI / 180);
-                    const pitch = (Math.random() * 20 - 10) * (Math.PI / 180);
-                    await bot.look(yaw, pitch, true);
-                } catch (e) {}
-            }
-        }, 15000);
     });
 
-    bot.on('kicked', (reason) => console.log(`[${config.username}] ❌ طرد: ${JSON.stringify(reason)}`));
-    bot.on('error', (err) => console.error(`[${config.username}] 🚨 خطأ شبكة:`, err.message));
+    // كاشف الأخطاء والطرد
+    bot.on('kicked', (reason) => {
+        console.log(`[${config.username}] ❌ طرد: ${JSON.stringify(reason)}`);
+    });
+    
+    bot.on('error', (err) => {
+        console.error(`[${config.username}] 🚨 خطأ شبكة:`, err.message);
+    });
     
     bot.on('end', (reason) => {
         console.warn(`[${config.username}] 🔌 انفصل (${reason}). إعادة اتصال خلال 30 ثانية...`);
-        if (keepAliveInterval) clearInterval(keepAliveInterval);
         setTimeout(() => startBot(config), 30000);
     });
 }
 
-// حماية الكود من الانهيار
+// حماية حاوية التشغيل من الانهيار والسكوت
 process.on('unhandledRejection', err => {});
 process.on('uncaughtException', err => {});
 
+// تشغيل البوتات بفواصل متباعدة جداً (25 ثانية) لضمان عدم رصد الـ IP من الحماية
 botsData.forEach((config, index) => {
     setTimeout(() => startBot(config), index * 25000); 
 });
