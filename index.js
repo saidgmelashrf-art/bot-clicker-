@@ -17,7 +17,7 @@ const botsData = [
     { username: 'ProBot_247_2', password: 'MyBotPassword123' }
 ];
 
-const SERVER_HOST = 'Progamer-Smp.aternos.me';
+const SERVER_HOST = 'progamer-smp1.play.hosting';
 const SERVER_PORT = 29801;
 
 // --- 3. دالة تشغيل البوت ---
