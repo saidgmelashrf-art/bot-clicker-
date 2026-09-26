@@ -1,33 +1,34 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// --- 1. سيرفر ويب متوافق مع نظام الـ Health Check الخاص بـ Railway ---
+// --- 1. سيرفر ويب متوافق مع نظام الـ Health Check الخاص بالاستضافات ---
 const app = express();
-// Railway يقوم بتمرير البورت تلقائياً عبر متغيرات البيئة، وإلا سيعمل على 3000
 const PORT = process.env.PORT || 3000; 
 
 app.get('/', (req, res) => {
-    res.status(200).send('Railway Minecraft Bots are Online 24/7!');
+    res.status(200).send('Minecraft Bots are Online 24/7!');
 });
 
-// هذا المسار يضمن لـ Railway أن الخدمة مستقرة ولا تموت في الخلفية
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Express] السيرفر يعمل بنجاح ومستعد لاستقبال اتصالات Railway على البورت: ${PORT}`);
+    console.log(`[Express] السيرفر يعمل بنجاح على البورت: ${PORT}`);
 });
 
-// --- 2. بيانات البوتات وضبط الاتصال الرقمي المستخرج ---
+// --- 2. بيانات البوتات وضبط الاتصال الرقمي ---
 const botsData = [
     { username: 'GamerPro_247_1', password: 'MyBotPassword123' },
     { username: 'GamerPro_247_2', password: 'MyBotPassword123' }
 ];
 
-// استخدام الآي بي الرقمي المباشر الذي استخرجناه لتخطي تعليق الاتصال في Railway
+// استخدام الآي بي الرقمي المباشر
 const SERVER_HOST = '62.141.62.8'; 
-const SERVER_PORT = 25856;
+
+// ⚠️ تم التغيير إلى 25565 لتخطي حظر جدار الحماية (Firewall) في الاستضافات السحابية
+// (إذا لم ينجح، يمكنك تجربة البورت القديم 25856 أو بورت الكروس بلاي 19132)
+const SERVER_PORT = 25565; 
 
 // --- 3. دالة تشغيل البوت ---
 function startBot(config) {
@@ -37,17 +38,17 @@ function startBot(config) {
         host: SERVER_HOST,
         port: SERVER_PORT,
         username: config.username,
-        version: "1.20.1", // ⚠️ تأكد أن هذا هو إصدار سيرفرك بالضبط (غيره إذا كان سيرفرك 1.21 مثلاً)
+        version: "1.20.1", // ⚠️ تأكد أن هذا هو إصدار سيرفرك بالضبط
         auth: 'offline',   // لتشغيل الحسابات المكركة
-        checkTimeoutInterval: 45000, // مهلة انتظار حزم البيانات لمنع تعليق الحاوية
-        respawn: true
+        checkTimeoutInterval: 60000, // زيادة المهلة إلى دقيقة كاملة لمنع الـ ETIMEDOUT
+        hideErrors: false  // إظهار التفاصيل الكاملة للأخطاء
     });
 
     let actionTimeout;
 
     // عند الدخول الناجح للسيرفر
     bot.on('spawn', () => {
-        console.log(`[${config.username}] ✅ دخل سيرفر ماين كرافت بنجاح على Railway!`);
+        console.log(`[${config.username}] ✅ دخل سيرفر ماين كرافت بنجاح!`);
 
         // تأخير ذكي للأوامر لمنع نظام الحماية بالسيرفر من طرد البوت (Anti-Spam)
         setTimeout(() => {
@@ -63,7 +64,7 @@ function startBot(config) {
         scheduleNextAction(bot, config.username);
     });
 
-    // كاشف الطرد المباشر (Kick) مع طباعة السبب
+    // كاشف الطرد المباشر (Kick)
     bot.on('kicked', (reason) => {
         console.log(`[${config.username}] ❌ تم طرده! السبب: ${JSON.stringify(reason)}`);
     });
@@ -113,9 +114,9 @@ function startBot(config) {
     }
 }
 
-// حماية حاوية Railway من الانهيار التام عند حدوث خطأ مفاجئ غير متوقع
-process.on('unhandledRejection', err => console.error('Railway Safety Exception:', err));
-process.on('uncaughtException', err => console.error('Railway Safety Exception:', err));
+// حماية الخدمة من الانهيار التام عند حدوث خطأ مفاجئ بالشبكة
+process.on('unhandledRejection', err => console.error('Safety Exception:', err.message || err));
+process.on('uncaughtException', err => console.error('Safety Exception:', err.message || err));
 
 // تشغيل البوتات بفارق زمني متباعد لمنع حجب الآيبيهات (IP Block)
 botsData.forEach((config, index) => {
