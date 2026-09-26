@@ -1,98 +1,87 @@
-const mineflayer = require('mineflayer');
+const bedrock = require('bedrock-protocol');
 const express = require('express');
 
 // --- 1. سيرفر ويب متوافق مع نظام الـ Health Check الخاص بـ Railway ---
 const app = express();
 const PORT = process.env.PORT || 3000; 
 
-app.get('/', (req, res) => res.status(200).send('Minecraft Bots Online 24/7!'));
+app.get('/', (req, res) => res.status(200).send('Bedrock Bots Online 24/7!'));
 app.get('/health', (req, res) => res.status(200).send('OK'));
-app.listen(PORT, '0.0.0.0', () => console.log(`[Express] Listening on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`[Express] السيرفر يعمل بنجاح على البورت: ${PORT}`));
 
-// --- 2. البيانات الأساسية المحمية بالسيرفر والـ Domain النصي الأصلي ---
+// --- 2. بيانات البوتات (حسابات الجوال المكركة) ---
 const botsData = [
     { username: 'GamerPro_247_1', password: 'MyBotPassword123' },
     { username: 'GamerPro_247_2', password: 'MyBotPassword123' }
 ];
 
+// استضافة Play.hosting تستخدم بورت الجوال الافتراضي للكروس بلاي
 const SERVER_HOST = 'progamer-smp1.play.hosting'; 
-const SERVER_PORT = 25856; 
+const SERVER_PORT = 19132; // 👈 بورت البدروك الإجباري لتخطي الحظر نهائياً
 
-// --- 3. دالة تشغيل البوت المطور ---
+// --- 3. دالة تشغيل بوت البدروك ---
 function startBot(config) {
-    console.log(`[${config.username}] 🔄 جاري بدء المصافحة المستقرة للاتصال بـ ${SERVER_HOST} بإصدار 1.20.4...`);
+    console.log(`[${config.username}] 📱 جاري الدخول بنظام البدروك (الجوال) لتخطي حظر الـ Java...`);
 
-    const bot = mineflayer.createBot({
+    const client = bedrock.createClient({
         host: SERVER_HOST,
         port: SERVER_PORT,
         username: config.username,
-        version: "1.20.4", // 👈 تم التغيير إلى 1.20.4 بناءً على طلبك
-        auth: 'offline',   // تشغيل الحساب المكرك
-        
-        // إعدادات مصيرية للتوافق مع استضافة Play.hosting والـ Crossplay
-        fakeHost: SERVER_HOST,
-        checkTimeoutInterval: 60000, // مهلة انتظار دقيقة لمنع الـ Timeout
-        viewDistance: "tiny"
+        offline: true, // الحساب مكرك
+        skipPing: false
     });
 
-    let actionTimeout;
+    let keepAliveInterval;
 
-    // عند الدخول الناجح
-    bot.on('spawn', () => {
-        console.log(`[${config.username}] ✅ 🎉 مبروك! البوت نجح في الدخول واستقر داخل السيرفر بإصدار 1.20.4!`);
+    // عند النجاح في الاتصال والولادة داخل السيرفر
+    client.on('spawn', () => {
+        console.log(`[${config.username}] ✅ 🎉 مبروك! البوت دخل السيرفر بنجاح كلاعب جوال عبر Railway!`);
 
+        // إرسال أوامر التسجيل والدخول في الشات
         setTimeout(() => {
-            if (bot && bot.entity) {
-                bot.chat(`/register ${config.password} ${config.password}`);
-                setTimeout(() => {
-                    if (bot && bot.entity) bot.chat(`/login ${config.password}`);
-                }, 3000);
-            }
+            client.queue('text', {
+                type: 'chat', needs_translation: false, source_name: config.username, xuid: '', platform_chat_id: '',
+                message: `/register ${config.password} ${config.password}`
+            });
+            
+            setTimeout(() => {
+                client.queue('text', {
+                    type: 'chat', needs_translation: false, source_name: config.username, xuid: '', platform_chat_id: '',
+                    message: `/login ${config.password}`
+                });
+            }, 3000);
         }, 4000);
 
-        scheduleNextAction(bot, config.username);
+        // نظام إرسال حزم الحركة عشوائياً (Anti-AFK) لمنع الطرد
+        keepAliveInterval = setInterval(() => {
+            // إرسال حزمة حركة وهمية خفيفة للسيرفر للحفاظ على الاتصال 24 ساعة
+            client.queue('player_auth_input', {
+                pitch: 0, yaw: Math.random() * 360,
+                position: { x: 0, y: 0, z: 0 },
+                move_vector: { x: 0, z: 0 },
+                modifier_id: 0, input_data: { sneak: Math.random() > 0.5 },
+                input_mode: 'mouse', play_mode: 'normal', tick: 0n
+            });
+        }, 15000);
     });
 
-    bot.on('kicked', (reason) => {
-        console.log(`[${config.username}] ❌ تم طرده من السيرفر. السبب: ${JSON.stringify(reason)}`);
+    // التعامل مع الأخطاء والانفصال
+    client.on('error', (err) => {
+        console.error(`[${config.username}] 🚨 خطأ شبكة البدروك:`, err.message);
     });
 
-    bot.on('error', (err) => {
-        console.error(`[${config.username}] 🚨 خطأ في الشبكة:`, err.message);
+    client.on('close', () => {
+        console.warn(`[${config.username}] 🔌 انفصل الاتصال. إعادة المحاولة خلال 30 ثانية...`);
+        if (keepAliveInterval) clearInterval(keepAliveInterval);
+        setTimeout(() => startBot(config), 30000);
     });
-
-    bot.on('end', (reason) => {
-        console.warn(`[${config.username}] 🔌 انفصل الاتصال (${reason}). إعادة المحاولة بعد 25 ثانية...`);
-        if (actionTimeout) clearTimeout(actionTimeout);
-        setTimeout(() => startBot(config), 25000);
-    });
-
-    // نظام منع الـ AFK المستقر
-    function scheduleNextAction(botInstance, name) {
-        const randomDelay = Math.floor(Math.random() * (20000 - 15000)) + 15000;
-        actionTimeout = setTimeout(async () => {
-            if (botInstance && botInstance.entity) {
-                const actions = ['jump', 'lookAround', 'swingArm'];
-                const chosenAction = actions[Math.floor(Math.random() * actions.length)];
-                try {
-                    if (chosenAction === 'jump') {
-                        botInstance.setControlState('jump', true);
-                        setTimeout(() => botInstance.setControlState('jump', false), 200);
-                    } else if (chosenAction === 'lookAround') {
-                        await botInstance.look((Math.random() * 360 - 180) * (Math.PI / 180), (Math.random() * 30 - 15) * (Math.PI / 180), true);
-                    } else if (chosenAction === 'swingArm') {
-                        botInstance.swingArm('right');
-                    }
-                } catch (e) {}
-            }
-            scheduleNextAction(botInstance, name);
-        }, randomDelay);
-    }
 }
 
-process.on('unhandledRejection', err => console.error('Exception Intercepted:', err.message || err));
-process.on('uncaughtException', err => console.error('Exception Intercepted:', err.message || err));
+// حماية الخدمة من الكراش
+process.on('unhandledRejection', err => console.error('Bedrock Exception:', err.message || err));
+process.on('uncaughtException', err => console.error('Bedrock Exception:', err.message || err));
 
+// تشغيل البوتات بفارق زمني متباعد
 botsData.forEach((config, index) => {
     setTimeout(() => startBot(config), index * 20000); 
 });
