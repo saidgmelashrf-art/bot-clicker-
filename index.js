@@ -1,89 +1,80 @@
 const mineflayer = require('mineflayer');
 const express = require('express');
 
-// --- 1. سيرفر ويب متوافق مع نظام الـ Health Check الخاص بالاستضافات ---
+// --- 1. سيرفر الويب لضمان الجاهزية في Railway ---
 const app = express();
 const PORT = process.env.PORT || 3000; 
 
-app.get('/', (req, res) => {
-    res.status(200).send('Minecraft Bots are Online 24/7!');
-});
+app.get('/', (req, res) => res.status(200).send('Play.hosting Bots Active 24/7!'));
+app.get('/health', (req, res) => res.status(200).send('OK'));
+app.listen(PORT, '0.0.0.0', () => console.log(`[Express] السيرفر يعمل على بورت ${PORT}`));
 
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Express] السيرفر يعمل بنجاح على البورت: ${PORT}`);
-});
-
-// --- 2. بيانات البوتات وضبط الاتصال الرقمي ---
+// --- 2. البيانات الرسمية للسيرفر (بالاعتماد على الـ Domain النصي حصراً) ---
 const botsData = [
     { username: 'GamerPro_247_1', password: 'MyBotPassword123' },
     { username: 'GamerPro_247_2', password: 'MyBotPassword123' }
 ];
 
-// استخدام الآي بي الرقمي المباشر
-const SERVER_HOST = '62.141.62.8'; 
+// استخدام الـ Domain الأصلي طبقاً لتعليمات الاستضافة الرسمية لتجنب الـ Timeout
+const SERVER_HOST = 'progamer-smp1.play.hosting'; 
+const SERVER_PORT = 25856; 
 
-// ⚠️ تم التغيير إلى 25565 لتخطي حظر جدار الحماية (Firewall) في الاستضافات السحابية
-// (إذا لم ينجح، يمكنك تجربة البورت القديم 25856 أو بورت الكروس بلاي 19132)
-const SERVER_PORT = 25565; 
-
-// --- 3. دالة تشغيل البوت ---
+// --- 3. دالة تشغيل البوت الذكية ---
 function startBot(config) {
-    console.log(`[${config.username}] 🔄 جاري محاولة الاتصال بـ ${SERVER_HOST}:${SERVER_PORT}...`);
+    console.log(`[${config.username}] 🔄 جاري محاولة اختراق جدار الحماية والاتصال بالـ Domain...`);
 
     const bot = mineflayer.createBot({
         host: SERVER_HOST,
         port: SERVER_PORT,
         username: config.username,
-        version: "1.20.1", // ⚠️ تأكد أن هذا هو إصدار سيرفرك بالضبط
-        auth: 'offline',   // لتشغيل الحسابات المكركة
-        checkTimeoutInterval: 60000, // زيادة المهلة إلى دقيقة كاملة لمنع الـ ETIMEDOUT
-        hideErrors: false  // إظهار التفاصيل الكاملة للأخطاء
+        version: "1.21.1", // النسخة المطابقة تماماً لسيرفرك
+        auth: 'offline',   
+        
+        // الخدع المصيرية الموصى بها على Reddit لتخطي حماية الاستضافات المجانية:
+        viewDistance: 'tiny', // تقليل حزم الموارد المطلوبة من السيرفر فور الدخول
+        checkTimeoutInterval: 120000, // رفع مهلة الانتظار لدقيقتين كاملتين لضمان استقرار المصافحة
+        
+        // إيهام نظام الـ Crossplay بأن البوت قادم من مشغل طبيعي
+        fakeHost: SERVER_HOST
     });
 
     let actionTimeout;
 
-    // عند الدخول الناجح للسيرفر
+    // الدخول الناجح
     bot.on('spawn', () => {
-        console.log(`[${config.username}] ✅ دخل سيرفر ماين كرافت بنجاح!`);
+        console.log(`[${config.username}] ✅ 🎉 تم الاتصال بنجاح ودخل البوت السيرفر!`);
 
-        // تأخير ذكي للأوامر لمنع نظام الحماية بالسيرفر من طرد البوت (Anti-Spam)
+        // تأخير زمني متباعد لتفادي الـ Anti-Spam الخاص بالاستضافة
         setTimeout(() => {
             if (bot && bot.entity) {
                 bot.chat(`/register ${config.password} ${config.password}`);
-                
                 setTimeout(() => {
                     if (bot && bot.entity) bot.chat(`/login ${config.password}`);
-                }, 2500);
+                }, 3000);
             }
-        }, 3000);
+        }, 4000);
 
         scheduleNextAction(bot, config.username);
     });
 
-    // كاشف الطرد المباشر (Kick)
+    // مراقبة أحداث الطرد أو الفشل
     bot.on('kicked', (reason) => {
-        console.log(`[${config.username}] ❌ تم طرده! السبب: ${JSON.stringify(reason)}`);
+        console.log(`[${config.username}] ❌ تم رفض الدخول/الطرد من السيرفر. السبب: ${JSON.stringify(reason)}`);
     });
 
-    // كاشف أخطاء الشبكة والاتصال
     bot.on('error', (err) => {
-        console.error(`[${config.username}] 🚨 خطأ في الاتصال بالشبكة:`, err.message);
+        console.error(`[${config.username}] 🚨 فشل الاتصال بالشبكة (Error):`, err.message);
     });
 
-    // إعادة الاتصال التلقائي الآمن عند الانفصال
     bot.on('end', (reason) => {
-        console.warn(`[${config.username}] 🔌 انفصل الاتصال بسبب (${reason}). إعادة المحاولة خلال 20 ثانية...`);
+        console.warn(`[${config.username}] 🔌 انفصل الاتصال (${reason}). إعادة المحاولة بعد 30 ثانية...`);
         if (actionTimeout) clearTimeout(actionTimeout);
-        setTimeout(() => startBot(config), 20000);
+        setTimeout(() => startBot(config), 30000);
     });
 
-    // نظام الحركة العشوائية المستقر لمنع الـ AFK والـ Anti-Cheat
+    // نظام منع الـ AFK
     function scheduleNextAction(botInstance, name) {
-        const randomDelay = Math.floor(Math.random() * (20000 - 10000)) + 10000;
+        const randomDelay = Math.floor(Math.random() * (20000 - 15000)) + 15000;
         actionTimeout = setTimeout(async () => {
             if (botInstance && botInstance.entity) {
                 await performAction(botInstance);
@@ -99,11 +90,11 @@ function startBot(config) {
             switch (chosenAction) {
                 case 'jump':
                     botInstance.setControlState('jump', true);
-                    setTimeout(() => botInstance.setControlState('jump', false), 300);
+                    setTimeout(() => botInstance.setControlState('jump', false), 200);
                     break;
                 case 'lookAround':
                     const yaw = (Math.random() * 360 - 180) * (Math.PI / 180);
-                    const pitch = (Math.random() * 40 - 20) * (Math.PI / 180);
+                    const pitch = (Math.random() * 30 - 15) * (Math.PI / 180);
                     await botInstance.look(yaw, pitch, true);
                     break;
                 case 'swingArm':
@@ -114,13 +105,13 @@ function startBot(config) {
     }
 }
 
-// حماية الخدمة من الانهيار التام عند حدوث خطأ مفاجئ بالشبكة
-process.on('unhandledRejection', err => console.error('Safety Exception:', err.message || err));
-process.on('uncaughtException', err => console.error('Safety Exception:', err.message || err));
+// حماية حاوية ريلواي من الانهيار
+process.on('unhandledRejection', err => console.error('Caught Exception:', err.message || err));
+process.on('uncaughtException', err => console.error('Caught Exception:', err.message || err));
 
-// تشغيل البوتات بفارق زمني متباعد لمنع حجب الآيبيهات (IP Block)
+// تشغيل البوتات بفارق متباعد جداً (25 ثانية) لضمان تخطي جدار الحماية الذكي للـ Crossplay
 botsData.forEach((config, index) => {
     setTimeout(() => {
         startBot(config);
-    }, index * 12000);
+    }, index * 25000); 
 });
