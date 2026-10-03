@@ -15,7 +15,7 @@ const botsData = [
     { username: 'GamerPro_247_2', password: 'MyBotPassword123' }
 ];
 
-const SERVER_HOST = 'progamer-smp1.play.hosting'; 
+const SERVER_HOST = 'aetheronsmp.play.hosting'; 
 
 // --- 3. دالة تشغيل البوت الذكية ---
 function startBot(config) {
